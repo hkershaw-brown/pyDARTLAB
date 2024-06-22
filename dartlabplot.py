@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib.ticker import FuncFormatter
 import matplotlib.pyplot as plt
-from matplotlib.widgets import RadioButtons, Button
+from matplotlib.widgets import RadioButtons, Button, TextBox
 from dataclasses import dataclass
 from increments import obs_increment_eakf, obs_increment_enkf, obs_increment_rhf
 
@@ -54,6 +54,7 @@ class DartLabPlot:
         ax.plot(mu, 0, ObservationStyle.marker, markersize=ObservationStyle.markersize)
         ax.set_xlabel('Observed Quantity')
         ax.set_ylabel('Observation Likelihood')
+        self.obs_ax = ax
 
 
     def add_filter_options(self, position): # [left, bottom, width, height]
@@ -90,6 +91,36 @@ class DartLabPlot:
         self.button = Button(self.button_ax, 'Update Ensemble', color='lightblue', hovercolor='0.975')
         self.add_update_button_conn_id = self.button.on_clicked(self.update_ensemble)
         print('adding to event connections', self.add_update_button_conn_id)
+
+    def add_mu_observation_textbox(self, position):  # [left, bottom, width, height]
+        # Adjust the position of the mu textbox if necessary
+        self.mu_textbox_ax = plt.axes(position)
+        self.mu_textbox = TextBox(self.mu_textbox_ax, 'Observation ', initial=str(self.mu))
+        # Connect the update function to the mu TextBox
+        self.mu_conn_id = self.mu_textbox.on_submit(self.update_mu)
+
+    def add_sigma_observation_textbox(self, position):  # [left, bottom, width, height]
+        # Adjust the position of the sigma textbox if necessary
+        self.sigma_textbox_ax = plt.axes(position)
+        self.sigma_textbox = TextBox(self.sigma_textbox_ax, 'Observation SD ', initial=str(self.sigma))
+        # Connect the update function to the sigma TextBox
+        self.sigma_conn_id = self.sigma_textbox.on_submit(self.update_sigma)
+
+    # Update the update function to read from the TextBoxes
+    def update_mu(self, val):
+        self.mu = float(self.mu_textbox.text)  # Convert text input to float
+        self.obs_ax.clear()  # Clear the previous plot
+        self.plot_observation(self.obs_ax, self.mu, self.sigma)  # Re-plot the observation with the new mu
+        self.update_ensemble(None)  # Update the ensemble with the new observation
+        plt.draw()  # Redraw the figure to reflect changes
+
+    def update_sigma(self, val):
+        self.sigma = float(self.sigma_textbox.text)  # Convert text input to float
+        self.obs_ax.clear()  # Clear the previous plot
+        self.plot_observation(self.obs_ax, self.mu, self.sigma)  # Re-plot the observation with the new sigma
+        self.update_ensemble(None)  # Update the ensemble with the new observation
+        plt.draw()  # Redraw the figure to reflect changes
+
 
     def update_ensemble(self, event):
         print("does nothing")
@@ -245,5 +276,3 @@ class TwodEnsemble(DartLabPlot):
             self.ax3.plot(0, event.ydata, 'g*')
             self.ax4.plot(event.xdata, 0, 'g*')
             plt.draw()  # Update the plot with the new point
-
-    
