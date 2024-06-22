@@ -48,7 +48,7 @@ class DartLabPlot:
         y = (1 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
 
         ax.axhline(y=0, color='k', linestyle='-', linewidth=1)
-        ax.set_xlim(self.x_limits)
+        #ax.set_xlim(self.x_limits)
         ax.yaxis.set_major_formatter(FuncFormatter(hide_negative_numbers))
         ax.plot(x,y, linestyle=ObservationStyle.linestyle, color=ObservationStyle.linecolor)
         ax.plot(mu, 0, ObservationStyle.marker, markersize=ObservationStyle.markersize)
@@ -106,6 +106,7 @@ class TwodEnsemble(DartLabPlot):
         self.sigma = sigma
         self.mu = mu
         self.x_limits = x_limits
+        self.plot_observation(self.ax4, self.mu, self.sigma)
 
         
         self.ax1.grid(True)
@@ -127,13 +128,23 @@ class TwodEnsemble(DartLabPlot):
         self.ax3.set_ylim(self.y_limits_ax1)
         self.ax3.set_xticklabels([])
 
+        # set ax4 limits
+        #self.ax4.set_ylim(bottom=-0.2)
+        self.ax4.set_xlim(self.x_limits_ax1)
+
+
         # Connect the event handler to the figure
         self.fig.canvas.mpl_connect('button_press_event', self.on_click)
 
     def update_ensemble(self, event):
 
-    # need to clear plots, but leave original clicked points, and observations or replot them each time.
-    # Clear existing plots
+        if len(self.clicked_points) < 2:
+            print("Need at least 2 points to update ensemble.")
+            return  # Exit the function early
+
+
+        # need to clear plots, but leave original clicked points, and observations or replot them each time.
+        # Clear existing plots
         self.ax1.clear()
         self.ax2.clear()
         self.ax3.clear()
@@ -155,14 +166,10 @@ class TwodEnsemble(DartLabPlot):
         self.ax3.set_xlim(-0.1, 1)
         self.ax3.set_ylim(self.y_limits_ax1)
         self.ax3.set_xticklabels([])
+        #self.ax4.set_ylim(bottom=-0.2)
+        self.ax4.set_xlim(self.x_limits_ax1)
         self.ax4.yaxis.set_major_formatter(FuncFormatter(hide_negative_numbers))
 
-        # Check if there are fewer than 2 clicked points
-        if len(self.clicked_points) < 2:
-            print("Need at least 2 points to update ensemble.")
-            return  # Exit the function early
-
-        # Rest of your function code follows...
         # Use zip and the * operator to unzip the list of tuples into two lists
         x_list, y_list = zip(*self.clicked_points)
 
