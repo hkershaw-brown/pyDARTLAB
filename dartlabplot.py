@@ -31,8 +31,8 @@ class ObservationStyle:
 
 class DartLabPlot:
 
-    def __init__(self, x_limits):
-        #self.fig = fig # do you want the figure?
+    def __init__(self, fig, x_limits):
+        self.fig = fig # do you want the figure?
         self.x_limits = x_limits # Helen do you want this?
         self.current_filter_selection = 'EAKF'
         self.clicked_points = []
@@ -67,7 +67,6 @@ class DartLabPlot:
 
         #self.radio_conn_id = radio.on_clicked(self.handle_radio)
         self.radio_conn_id = self.radio.on_clicked(self.handle_radio)
-        print('adding to event connections', self.radio_conn_id)
    
     def handle_radio(self, label):
         self.current_filter_selection = label
@@ -90,7 +89,6 @@ class DartLabPlot:
         self.button_ax = plt.axes(position)
         self.button = Button(self.button_ax, 'Update Ensemble', color='lightblue', hovercolor='0.975')
         self.add_update_button_conn_id = self.button.on_clicked(self.update_ensemble)
-        print('adding to event connections', self.add_update_button_conn_id)
 
     def add_mu_observation_textbox(self, position):  # [left, bottom, width, height]
         # Adjust the position of the mu textbox if necessary
@@ -128,8 +126,7 @@ class DartLabPlot:
 class TwodEnsemble(DartLabPlot):
 
     def __init__(self, fig, ax1, ax2, ax3, ax4, mu, sigma, x_limits):
-        super().__init__(x_limits)
-        self.fig = fig
+        super().__init__(fig, x_limits)
         self.ax1 = ax1
         self.ax2 = ax2
         self.ax3 = ax3
@@ -149,15 +146,18 @@ class TwodEnsemble(DartLabPlot):
         self.y_limits_ax1 = ax1.get_ylim()
 
         # Set the limits of ax2, ax3 to match those of ax1
-        self.ax3.grid(True)
+        self.ax2.grid(True)
         self.ax2.set_xlim(self.x_limits_ax1)
         self.ax2.set_ylim(-0.1, 1)
         self.ax2.set_yticklabels([])
+        self.ax2.set_xlabel('Observed quantity')
 
         self.ax3.grid(True)
         self.ax3.set_xlim(-0.1, 1)
         self.ax3.set_ylim(self.y_limits_ax1)
         self.ax3.set_xticklabels([])
+        self.ax3.set_ylabel('Unobserved state quantity')
+   
 
         # set ax4 limits
         #self.ax4.set_ylim(bottom=-0.2)
@@ -263,7 +263,6 @@ class TwodEnsemble(DartLabPlot):
 
         plt.draw()  # Redraw the figure to reflect changes
 
-        
     def on_click(self, event):
         # Check if the click was on ax1
         if event.inaxes == self.ax1:
