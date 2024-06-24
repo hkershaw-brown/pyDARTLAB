@@ -1,9 +1,10 @@
 import numpy as np
 from matplotlib.ticker import FuncFormatter
 import matplotlib.pyplot as plt
-from matplotlib.widgets import RadioButtons, Button, TextBox
+from matplotlib.widgets import RadioButtons, Button, TextBox, Slider, CheckButtons
 from dataclasses import dataclass
 from increments import obs_increment_eakf, obs_increment_enkf, obs_increment_rhf
+import math
 
 def hide_negative_numbers(x, pos):
     """Hide negative numbers on an axis."""
@@ -119,6 +120,33 @@ class DartLabPlot:
         self.update_ensemble(None)  # Update the ensemble with the new observation
         plt.draw()  # Redraw the figure to reflect changes
 
+    def add_inflation_slider(self, position):
+        self.inflation_slider_ax = plt.axes(position, facecolor='lightgoldenrodyellow')
+        self.inflation_slider = Slider(ax=self.inflation_slider_ax, label='Inflation ', valmin=1.0, valmax=5.0, valinit=1.0, valfmt='%1.2f')
+        self.inf_conn_id = self.inflation_slider.on_changed(self.update_inflation) # connect the slider to the update_inflation function
+
+    def update_inflation(self, val):
+        self.inflation_factor = self.inflation_slider.val
+        # Here you would typically apply the inflation factor to your model or data
+        print(f"Inflation Factor: {self.inflation_factor}")  # Example action
+
+    def add_inflation_toggle(self, position):
+        self.check_ax = plt.axes(position)  # Adjust these coordinates as needed
+        for spine in self.check_ax.spines.values():
+            spine.set_visible(False)
+        self.check_button = CheckButtons(self.check_ax, [' Apply inflation'], [False], check_props={'s': [400]}, frame_props={'s': [400]})
+        self.inf_tog_conn_id = self.check_button.on_clicked(self.toggle_inflation)
+
+    def toggle_inflation(self, label):
+        if label.strip() == 'Apply inflation':
+            # Here, implement what happens when inflation is toggled
+            # For example, adjust a parameter or update the plot
+            # This is a placeholder for the actual logic
+            self.inflation_enabled = self.check_button.get_status()[0]
+            print(f"Inflation enabled: {self.inflation_enabled}")
+            # Update your plot or parameters here based on the inflation_enabled state
+
+
 
     def update_ensemble(self, event):
         print("does nothing")
@@ -158,13 +186,11 @@ class TwodEnsemble(DartLabPlot):
         self.ax3.set_xticklabels([])
         self.ax3.set_ylabel('Unobserved state quantity')
    
-
         # set ax4 limits
         #self.ax4.set_ylim(bottom=-0.2)
         self.ax4.set_xlim(self.x_limits_ax1)
 
-
-        # Connect the event handler to the figure
+        # Connect the clicky event handler to the figure
         self.fig.canvas.mpl_connect('button_press_event', self.on_click)
 
     def update_ensemble(self, event):
@@ -275,3 +301,73 @@ class TwodEnsemble(DartLabPlot):
             self.ax3.plot(0, event.ydata, 'g*')
             self.ax4.plot(event.xdata, 0, 'g*')
             plt.draw()  # Update the plot with the new point
+
+class OnedEnsemble(DartLabPlot):
+    def __init__(self, fig, ax1, mu, sigma, x_limits, y_limits):
+        super().__init__(fig, x_limits)
+        self.ax1 = ax1
+        self.sigma = sigma
+        self.mu = mu
+        self.x_limits = x_limits
+        self.ax1.set_xlim(-2, 4)     # these are reset in update mu & update sigma
+        self.ax1.set_ylim(-0.4, 1)
+        self.plot_observation(self.ax1, self.mu, self.sigma)
+
+        self.fig.canvas.mpl_connect('button_press_event', self.on_click)
+
+    def on_click(self, event):
+        # Check if the click was on ax1
+        if event.inaxes == self.ax1:
+            # Append the clicked point (xdata) to the list
+            self.clicked_points.append((event.xdata))
+            print(f"Clicked at x={event.xdata}")
+            # Plot the click coordinates on ax1
+            self.ax1.plot(event.xdata, 0, 'go')
+            plt.draw() # Update the plot with the new point
+
+    def update_ensemble(self, event):
+
+        if len(self.clicked_points) < 2:
+            print("Need at least 2 points to update ensemble.")
+            return  # Exit the function early
+
+        x_list = np.array(list(self.clicked_points))
+        zeros_array = np.zeros(len(x_list))
+
+        self.ax1.clear()
+        self.ax1.set_ylim(bottom=-0.2)
+
+        self.plot_observation(self.ax1, self.mu, self.sigma)
+        self.ax1.plot(x_list, zeros_array, 'go')
+
+        self.plot_observation(self.ax1, self.mu, self.sigma)
+
+        # Calculate the observation increments
+        if self.current_filter_selection == 'EAKF':
+            obs_increments = obs_increment_eakf(np.array(x_list), self.mu, self.sigma**2)
+        elif self.current_filter_selection == 'EnKF':
+            obs_increments = obs_increment_enkf(np.array(x_list), self.mu, self.sigma**2)
+        elif self.current_filter_selection == 'RHF':
+            obs_increments = obs_increment_rhf(np.array(x_list), self.mu, self.sigma**2)
+        
+        updated_x = x_list + obs_increments
+        
+        z_plot = [element - 0.1 for i, element in enumerate(zeros_array)]
+        self.ax1.plot(updated_x, z_plot, 'b*')
+
+        if self.inflation_enabled:
+            # Apply inflation to the ensemble
+            inf_x = (x_list - x_list.mean())* math.sqrt(self.inflation_factor) + x_list.mean()
+
+        # plot increment lines
+        for i, _ in enumerate(updated_x):
+            self.ax1.plot([x_list[i], updated_x[i]], [zeros_array[i], zeros_array[i]-0.1], 'b-')
+
+        plt.draw()  # Redraw the figure to reflect changes
+    
+
+class Lorenz96(DartLabPlot):
+    def __init__(self, fig, ax1, ax2, ax3, ax4):
+        x_limits = [0, 10]
+        super().__init__(fig, x_limits)
+    
